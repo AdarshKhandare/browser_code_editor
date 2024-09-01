@@ -3,24 +3,32 @@ import { Button } from "./ui/button";
 import { executecode } from "@/utils/api";
 import * as monaco from "monaco-editor";
 import { Language } from "./CodeEditor";
+import { toast } from "sonner";
 interface OutputProps {
   editorRef: React.MutableRefObject<monaco.editor.IStandaloneCodeEditor | null>;
   language: Language;
 }
 const Output: React.FC<OutputProps> = ({ editorRef, language }) => {
-  const [output, setOutput] = useState<undefined | null | string>(null);
+  const [output, setOutput] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+
   const runCode = async () => {
     const sourceCode = editorRef?.current?.getValue();
     if (!sourceCode) return;
-    if (output !== "") {
-      setOutput("");
+    if (output) {
+      setOutput(null);
     }
     try {
       setLoading(true);
-      const { run } = await executecode(language, sourceCode);
-      console.log("Output", run);
-      setOutput(run.output);
+      const { run: result } = await executecode(language, sourceCode);
+      console.log("Output", result);
+      setOutput(result.output.split("\n"));
+      if (result.stderr) {
+        setIsError(true);
+        toast.error("An error occurred while compiling code");
+      }
+      toast.success("compiled successfully");
     } catch (error) {
       console.log(error);
     } finally {
@@ -43,9 +51,18 @@ const Output: React.FC<OutputProps> = ({ editorRef, language }) => {
           )}
         </Button>
       </div>
-      <div className="h-[80vh] rounded-lg border border-stone-800 p-4 bg-neutral-900 text-gray-300">
+      <div
+        className={`h-[80vh] rounded-lg border ${
+          isError
+            ? "border-red-800 bg-red-300 "
+            : "border-stone-800 bg-neutral-900"
+        } p-4 text-gray-300 flex flex-col justify-start items-start`}>
         {output ? (
-          output
+          output.map((line, i) => (
+            <span key={i} className="mb-1">
+              {line}
+            </span>
+          ))
         ) : loading ? (
           <span className="relative flex h-6 w-6">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-900 opacity-95"></span>
